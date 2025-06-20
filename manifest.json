@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "TouchFish Reader",
+  "version": "1.0.0",
+  "description": "隐秘的网页电子书阅读工具",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TouchFish Reader"
+  },
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "commands": {
+    "next-page": {
+      "suggested_key": {
+        "default": "Ctrl+Right"
+      },
+      "description": "下一页"
+    },
+    "prev-page": {
+      "suggested_key": {
+        "default": "Ctrl+Left"
+      },
+      "description": "上一页"
+    }
+  }
+}

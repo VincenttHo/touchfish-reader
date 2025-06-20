@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      margin: 0;
+      background: #f8f9fa;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      background: white;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .status-text {
+      font-weight: 500;
+    }
+    
+    .toggle-btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .toggle-btn.active {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .toggle-btn.inactive {
+      background: #28a745;
+      color: white;
+    }
+    
+    .toggle-btn:hover {
+      opacity: 0.8;
+    }
+    
+    .book-section {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .file-input {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    
+    .file-input-btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: #007bff;
+      color: white;
+      text-align: center;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .file-input-btn:hover {
+      background: #0056b3;
+    }
+    
+    .progress-info {
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    
+    .progress-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+    
+    .instructions {
+      background: #e9ecef;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #666;
+    }
+    
+    .instructions h4 {
+      margin: 0 0 8px 0;
+      color: #333;
+      font-size: 13px;
+    }
+    
+    .instructions ul {
+      margin: 0;
+      padding-left: 16px;
+    }
+    
+    .instructions li {
+      margin-bottom: 4px;
+    }
+    
+    .todo-section {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    
+    .todo-title {
+      font-weight: 600;
+      color: #856404;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+    
+    .todo-item {
+      font-size: 11px;
+      color: #856404;
+      margin-bottom: 2px;
+    }
+
+    .control-buttons {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+
+    .control-btn {
+      width: 100%;
+      padding: 10px 15px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .select-area-btn {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+      box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+    }
+
+    .select-area-btn:hover {
+      background: linear-gradient(135deg, #0056b3, #004085);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .nav-btn {
+      flex: 1;
+      background: #6c757d;
+      color: white;
+    }
+
+    .nav-btn:hover {
+      background: #5a6268;
+      transform: translateY(-1px);
+    }
+
+    .restore-btn {
+      background: #ffc107;
+      color: #212529;
+    }
+
+    .restore-btn:hover {
+      background: #e0a800;
+      transform: translateY(-1px);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+    }
+
+    /* 书本列表样式 */
+    .book-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .book-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+      transition: all 0.2s;
+    }
+
+    .book-item:hover {
+      background: #e9ecef;
+    }
+
+    .book-item.active {
+      background: #d4edda;
+      border-color: #c3e6cb;
+    }
+
+    .book-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .book-title {
+      font-weight: 500;
+      font-size: 13px;
+      color: #333;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .book-meta {
+      font-size: 11px;
+      color: #666;
+      display: flex;
+      gap: 10px;
+    }
+
+    .book-actions {
+      display: flex;
+      gap: 4px;
+      margin-left: 8px;
+    }
+
+    .book-btn {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .switch-btn {
+      background: #007bff;
+      color: white;
+    }
+
+    .switch-btn:hover {
+      background: #0056b3;
+    }
+
+    .switch-btn:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+
+    .delete-btn {
+      background: #dc3545;
+      color: white;
+    }
+
+    .delete-btn:hover {
+      background: #c82333;
+    }
+
+    .empty-list {
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      padding: 20px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h3>📚 TouchFish Reader</h3>
+  </div>
+  
+  <div class="status">
+    <span class="status-text">状态: <span id="status-display">未激活</span></span>
+    <button id="toggle-btn" class="toggle-btn inactive">激活</button>
+  </div>
+  
+  <div class="control-buttons" id="control-buttons" style="display: none;">
+    <button id="selectAreaBtn" class="control-btn select-area-btn">🎯 选择替换区域</button>
+    <div class="button-row">
+      <button id="prev-page-btn" class="control-btn nav-btn">⬅️ 上一页</button>
+      <button id="next-page-btn" class="control-btn nav-btn">下一页 ➡️</button>
+    </div>
+    <button id="restore-btn" class="control-btn restore-btn">🔄 恢复原文</button>
+  </div>
+  
+  <div class="progress-info" id="progress-info" style="display: none;">
+    <div class="progress-item">
+      <span>当前页:</span>
+      <span id="current-page">0</span>
+    </div>
+    <div class="progress-item">
+      <span>总页数:</span>
+      <span id="total-pages">0</span>
+    </div>
+    <div class="progress-item">
+      <span>进度:</span>
+      <span id="progress-percent">0%</span>
+    </div>
+  </div>
+  
+  <div class="book-section">
+    <div class="section-title">📖 导入电子书</div>
+    <div class="file-input-wrapper">
+      <input type="file" id="book-file" class="file-input" accept=".txt,.epub,.pdf">
+      <div class="file-input-btn">选择文件 (.txt)</div>
+    </div>
+  </div>
+  
+  <div class="book-section" id="book-list-section" style="display: none;">
+    <div class="section-title">📚 已导入书本</div>
+    <div id="book-list" class="book-list">
+      <!-- 书本列表将在这里动态生成 -->
+    </div>
+  </div>
+  
+  <div class="instructions">
+    <h4>📋 使用说明:</h4>
+    <ul>
+      <li>导入txt格式电子书</li>
+      <li>激活插件后选择网页文本</li>
+      <li>使用 Ctrl+← / Ctrl+→ 翻页</li>
+      <li>右上角有隐秘的翻页按钮</li>
+      <li>自动保存阅读进度</li>
+      <li>📚 支持多本书籍管理和切换</li>
+      <li>🗑️ 可删除不需要的书籍</li>
+    </ul>
+  </div>
+  
+  <div class="todo-section">
+    <div class="todo-title">🚀 TODO (未来功能):</div>
+    <div class="todo-item">• 在线导入书籍</div>
+    <div class="todo-item">• 支持更多格式 (EPUB, PDF)</div>
+    <div class="todo-item">• 云端同步进度</div>
+    <div class="todo-item">• 阅读统计和时长记录</div>
+    <div class="todo-item">• 书签和笔记功能</div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

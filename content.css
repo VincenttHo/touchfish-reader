@@ -1,0 +1,89 @@
+/* TouchFish Reader - 内容样式 */
+
+/* 控制按钮样式 */
+#touchfish-controls {
+  font-family: Arial, sans-serif;
+  user-select: none;
+  pointer-events: auto;
+}
+
+#touchfish-controls div {
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+#touchfish-controls div:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* TouchFish Reader 样式 */
+.touchfish-selected {
+  background-color: rgba(255, 255, 0, 0.1) !important;
+  border: 1px dashed #007bff !important;
+  transition: all 0.3s ease !important;
+}
+
+.touchfish-selected:hover {
+  background-color: rgba(255, 255, 0, 0.2) !important;
+}
+
+/* 阅读状态标记 - 不改变原有样式 */
+.touchfish-reading {
+  /* 仅用于标记，不添加任何视觉样式 */
+}
+
+/* 状态指示器动画 */
+#touchfish-status {
+  transition: all 0.3s ease;
+}
+
+/* 隐藏选择高亮 */
+.touchfish-no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* 确保控制元素在最顶层 */
+#touchfish-controls * {
+  z-index: 999999 !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  #touchfish-controls {
+    width: 18px;
+    height: 54px;
+  }
+  
+  #touchfish-controls div {
+    width: 18px !important;
+    height: 18px !important;
+    line-height: 18px !important;
+    font-size: 10px !important;
+  }
+  
+  #touchfish-status {
+    height: 14px !important;
+    line-height: 14px !important;
+    font-size: 7px !important;
+  }
+}
+
+/* 确保不影响原网页布局 */
+#touchfish-controls {
+  position: fixed !important;
+  pointer-events: auto !important;
+}
+
+/* 防止与网页元素冲突 */
+#touchfish-controls,
+#touchfish-controls * {
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  outline: none !important;
+}
