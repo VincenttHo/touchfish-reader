@@ -188,21 +188,35 @@ class PopupController {
     const file = event.target.files[0];
     if (!file) return;
 
+    const fileName = file.name.toLowerCase();
+    const isEpub = fileName.endsWith('.epub');
+    const isTxt = fileName.endsWith('.txt');
+    const isPdf = fileName.endsWith('.pdf');
+
     // 检查文件类型
-    if (!file.name.toLowerCase().endsWith('.txt')) {
-      this.showMessage('目前只支持 .txt 格式的文件', 'error');
+    if (!isTxt && !isEpub && !isPdf) {
+      this.showMessage('目前只支持 .txt、.epub 和 .pdf 格式的文件', 'error');
       return;
     }
 
-    // 检查文件大小 (限制为5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      this.showMessage('文件过大，请选择小于5MB的文件', 'error');
+    // 检查文件大小 (限制为100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      this.showMessage('文件过大，请选择小于100MB的文件', 'error');
       return;
     }
 
     try {
       console.log('开始读取文件:', file.name, '大小:', file.size, 'bytes');
-      const content = await this.readFileContent(file);
+      
+      let content;
+      if (isEpub) {
+        content = await this.parseEpubFile(file);
+      } else if (isPdf) {
+        content = await this.parsePdfFile(file);
+      } else {
+        content = await this.readFileContent(file);
+      }
+      
       console.log('文件读取完成，开始发送到内容脚本');
       
       const title = file.name.replace(/\.[^/.]+$/, ''); // 移除文件扩展名作为标题
@@ -221,9 +235,9 @@ class PopupController {
       // 根据错误类型显示不同的提示信息
       let errorMessage = '文件读取失败，请重试';
       if (error.message.includes('内容为空')) {
-        errorMessage = '文件内容为空，请选择有内容的txt文件';
+        errorMessage = '文件内容为空，请选择有内容的文件';
       } else if (error.message.includes('编码') || error.message.includes('格式')) {
-        errorMessage = '文件编码格式不支持，请使用UTF-8编码的txt文件';
+        errorMessage = '文件编码格式不支持，请使用UTF-8编码的文件';
       } else if (error.message.includes('损坏')) {
         errorMessage = '文件可能已损坏，请重新选择文件';
       } else if (error.message.includes('内容脚本')) {
@@ -445,6 +459,267 @@ class PopupController {
       } catch (error) {
         console.error('启动文件读取失败:', error);
         reject(new Error('无法启动文件读取'));
+      }
+    });
+  }
+
+  // 解析EPUB文件
+  async parseEpubFile(file) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 检查JSZip是否可用
+        if (typeof JSZip === 'undefined') {
+          reject(new Error('JSZip库未加载，无法解析EPUB文件'));
+          return;
+        }
+
+        console.log('开始解析EPUB文件:', file.name);
+        
+        // 读取文件为ArrayBuffer
+        const arrayBuffer = await this.readFileAsArrayBuffer(file);
+        
+        // 使用JSZip解析EPUB文件
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        
+        // 读取container.xml获取OPF文件路径
+        const containerXml = await zip.file('META-INF/container.xml').async('text');
+        const opfPath = this.extractOpfPath(containerXml);
+        
+        if (!opfPath) {
+          reject(new Error('无法找到OPF文件路径'));
+          return;
+        }
+        
+        // 读取OPF文件
+        const opfContent = await zip.file(opfPath).async('text');
+        const manifest = this.parseOpfManifest(opfContent);
+        const spine = this.parseOpfSpine(opfContent);
+        
+        // 按spine顺序读取章节内容
+        let bookContent = '';
+        const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
+        
+        for (const spineItem of spine) {
+          const manifestItem = manifest.find(item => item.id === spineItem.idref);
+          if (manifestItem && manifestItem.mediaType === 'application/xhtml+xml') {
+            const chapterPath = opfDir + manifestItem.href;
+            try {
+              const chapterContent = await zip.file(chapterPath).async('text');
+              const textContent = this.extractTextFromXhtml(chapterContent);
+              if (textContent.trim()) {
+                bookContent += textContent + '\n\n';
+              }
+            } catch (error) {
+              console.warn('读取章节失败:', chapterPath, error);
+            }
+          }
+        }
+        
+        if (bookContent.trim().length === 0) {
+          reject(new Error('EPUB文件中没有找到可读取的文本内容'));
+          return;
+        }
+        
+        // 清理文本内容
+        bookContent = bookContent
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        
+        console.log('EPUB解析完成，内容长度:', bookContent.length);
+        resolve(bookContent);
+        
+      } catch (error) {
+        console.error('EPUB解析失败:', error);
+        reject(new Error('EPUB文件解析失败: ' + error.message));
+      }
+    });
+  }
+
+  // 读取文件为ArrayBuffer
+  readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        resolve(e.target.result);
+      };
+      
+      reader.onerror = (error) => {
+        reject(new Error('文件读取失败'));
+      };
+      
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // 从container.xml提取OPF文件路径
+  extractOpfPath(containerXml) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(containerXml, 'text/xml');
+      const rootfile = doc.querySelector('rootfile[media-type="application/oebps-package+xml"]');
+      return rootfile ? rootfile.getAttribute('full-path') : null;
+    } catch (error) {
+      console.error('解析container.xml失败:', error);
+      return null;
+    }
+  }
+
+  // 解析OPF文件的manifest部分
+  parseOpfManifest(opfContent) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(opfContent, 'text/xml');
+      const items = doc.querySelectorAll('manifest item');
+      
+      return Array.from(items).map(item => ({
+        id: item.getAttribute('id'),
+        href: item.getAttribute('href'),
+        mediaType: item.getAttribute('media-type')
+      }));
+    } catch (error) {
+      console.error('解析OPF manifest失败:', error);
+      return [];
+    }
+  }
+
+  // 解析OPF文件的spine部分
+  parseOpfSpine(opfContent) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(opfContent, 'text/xml');
+      const itemrefs = doc.querySelectorAll('spine itemref');
+      
+      return Array.from(itemrefs).map(itemref => ({
+        idref: itemref.getAttribute('idref')
+      }));
+    } catch (error) {
+      console.error('解析OPF spine失败:', error);
+      return [];
+    }
+  }
+
+  // 从XHTML内容中提取纯文本
+  extractTextFromXhtml(xhtmlContent) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xhtmlContent, 'text/html');
+      
+      // 移除script和style标签
+      const scripts = doc.querySelectorAll('script, style');
+      scripts.forEach(el => el.remove());
+      
+      // 获取body内容，如果没有body则获取整个文档
+      const body = doc.querySelector('body') || doc.documentElement;
+      
+      // 提取文本内容并保持基本的段落结构
+      let text = '';
+      const walker = doc.createTreeWalker(
+        body,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+      
+      let node;
+      while (node = walker.nextNode()) {
+        const textContent = node.textContent.trim();
+        if (textContent) {
+          text += textContent + ' ';
+        }
+      }
+      
+      // 处理段落分隔
+      const paragraphs = body.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6');
+      if (paragraphs.length > 0) {
+        text = '';
+        paragraphs.forEach(p => {
+          const pText = p.textContent.trim();
+          if (pText) {
+            text += pText + '\n\n';
+          }
+        });
+      }
+      
+      return text.trim();
+    } catch (error) {
+      console.error('提取XHTML文本失败:', error);
+      return '';
+    }
+  }
+
+  // 解析PDF文件
+  async parsePdfFile(file) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 检查PDF.js是否可用
+        if (typeof pdfjsLib === 'undefined') {
+          reject(new Error('PDF.js库未加载，无法解析PDF文件'));
+          return;
+        }
+
+        console.log('开始解析PDF文件:', file.name);
+        
+        // 设置PDF.js worker路径
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+        
+        // 读取文件为ArrayBuffer
+        const arrayBuffer = await this.readFileAsArrayBuffer(file);
+        
+        // 使用PDF.js加载PDF文档
+        const loadingTask = pdfjsLib.getDocument({
+          data: arrayBuffer,
+          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+          cMapPacked: true
+        });
+        
+        const pdf = await loadingTask.promise;
+        console.log('PDF加载成功，页数:', pdf.numPages);
+        
+        let fullText = '';
+        
+        // 逐页提取文本
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          try {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // 提取页面文本
+            const pageText = textContent.items
+              .map(item => item.str)
+              .join(' ')
+              .trim();
+            
+            if (pageText) {
+              fullText += pageText + '\n\n';
+            }
+            
+            console.log(`第${pageNum}页文本提取完成，长度:`, pageText.length);
+          } catch (pageError) {
+            console.warn(`提取第${pageNum}页文本失败:`, pageError);
+          }
+        }
+        
+        if (fullText.trim().length === 0) {
+          reject(new Error('PDF文件中没有找到可读取的文本内容'));
+          return;
+        }
+        
+        // 清理文本内容
+        fullText = fullText
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        
+        console.log('PDF解析完成，总文本长度:', fullText.length);
+        resolve(fullText);
+        
+      } catch (error) {
+        console.error('PDF解析失败:', error);
+        reject(new Error('PDF文件解析失败: ' + error.message));
       }
     });
   }

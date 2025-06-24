@@ -40,5 +40,11 @@
       },
       "description": "上一页"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content.css", "jszip.min.js", "pdf.min.js", "pdf.worker.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
