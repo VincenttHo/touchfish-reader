@@ -139,6 +139,12 @@ class TouchFishReader {
         }
       }
       
+      // Ctrl+Shift+S 停止阅读并恢复原始内容
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        this.stopReading();
+      }
+      
       // ESC键退出选择模式
       if (e.key === 'Escape' && this.isSelectingMode) {
         this.exitSelectingMode();
@@ -181,6 +187,9 @@ class TouchFishReader {
         sendResponse({success: true});
       } else if (request.action === 'restoreOriginalContent') {
         this.restoreOriginalContent();
+        sendResponse({success: true});
+      } else if (request.action === 'stopReading') {
+        this.stopReading();
         sendResponse({success: true});
       } else if (request.action === 'getBookList') {
         chrome.storage.local.get(['touchfishBooks', 'touchfishCurrentBookId']).then(result => {
@@ -269,6 +278,7 @@ class TouchFishReader {
       z-index: 999999;
       opacity: 0.1;
       transition: opacity 0.3s;
+      display: ${this.isActive ? 'block' : 'none'};
     `;
 
     // 鼠标悬停时显示
@@ -473,6 +483,32 @@ class TouchFishReader {
     return pages;
   }
 
+  // 停止阅读并恢复原始内容
+  stopReading() {
+    if (this.selectedElement && this.originalContent) {
+      this.selectedElement.textContent = this.originalContent;
+      this.selectedElement.classList.remove('touchfish-reading');
+      this.selectedElement = null;
+      this.originalContent = '';
+    }
+    
+    // 同时停止激活状态
+    this.isActive = false;
+    
+    // 更新状态指示器
+    if (this.statusDiv) {
+      this.statusDiv.style.backgroundColor = '#f44336';
+      this.statusDiv.textContent = 'OFF';
+    }
+    
+    // 隐藏控制按钮
+    if (this.controlDiv) {
+      this.controlDiv.style.display = 'none';
+    }
+    
+    this.saveState();
+  }
+
   // 切换激活状态
   toggleActive() {
     this.isActive = !this.isActive;
@@ -481,6 +517,7 @@ class TouchFishReader {
       // 恢复原始内容
       this.selectedElement.textContent = this.originalContent;
       this.selectedElement.style.backgroundColor = '';
+      this.selectedElement.classList.remove('touchfish-reading');
       this.selectedElement = null;
     }
     
@@ -488,6 +525,11 @@ class TouchFishReader {
     if (this.statusDiv) {
       this.statusDiv.style.backgroundColor = this.isActive ? '#4CAF50' : '#f44336';
       this.statusDiv.textContent = this.isActive ? 'ON' : 'OFF';
+    }
+    
+    // 更新控制按钮显示状态
+    if (this.controlDiv) {
+      this.controlDiv.style.display = this.isActive ? 'block' : 'none';
     }
     
     this.saveState();
